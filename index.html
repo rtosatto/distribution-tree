@@ -91,8 +91,11 @@
   .add-btn:active{ transform:scale(0.98); }
 
   .client-list{ margin-top:16px; display:flex; flex-direction:column; gap:5px; }
+  .list-group{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.09em; color:var(--line-dim); opacity:0.75; margin:10px 0 2px 2px; }
+  .list-group:first-child{ margin-top:0; }
   .client-item{ display:flex; align-items:center; gap:8px; font-size:11.5px; padding:7px 9px; border-radius:8px; background:rgba(255,255,255,0.02); cursor:pointer; transition:background 0.15s; }
   .client-item:hover{ background:rgba(255,255,255,0.06); }
+  .client-item.is-opp .name{ color:var(--line-dim); }
   .client-item .dot{ width:7px;height:7px;border-radius:50%; flex-shrink:0; }
   .client-item .name{ flex:1; color:var(--line); }
   .client-item .val{ color:var(--line-dim); font-family:'IBM Plex Mono',monospace; }
@@ -107,7 +110,7 @@
   .save-indicator.show{ opacity:0.7; }
 
   .canvas-wrap{ height:100%; }
-  svg{ display:block; width:100%; height:100%; }
+  svg{ display:block; width:100%; height:100%; touch-action:none; }
   @keyframes bob{
     0%,100%{ transform: translateY(0px) rotate(0deg); }
     50%{ transform: translateY(-7px) rotate(-2deg); }
@@ -143,6 +146,8 @@
   .detail-card .drow{ display:flex; justify-content:space-between; padding:3px 0; color:var(--line-dim); font-family:'IBM Plex Mono',monospace; font-size:11px; }
   .detail-card .drow b{ color:var(--line); font-weight:500; }
   .detail-card .close{ position:absolute; top:9px; right:11px; background:none; border:none; color:var(--line-dim); cursor:pointer; font-size:14px; }
+  .detail-card .move-btn{ margin-top:12px; width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:var(--line); border-radius:8px; padding:8px; font-size:11.5px; font-family:'Inter',sans-serif; cursor:pointer; transition:background 0.15s, border-color 0.15s; }
+  .detail-card .move-btn:hover{ background:rgba(255,255,255,0.09); border-color:var(--wood); }
 </style>
 </head>
 <body>
@@ -174,6 +179,13 @@
         </select>
       </div>
       <div>
+        <label>Stage</label>
+        <select id="f-stage">
+          <option value="opportunity">Opportunity — roots</option>
+          <option value="client">Client — canopy</option>
+        </select>
+      </div>
+      <div>
         <label>Tactic</label>
         <input type="text" id="f-tactic" placeholder="e.g. Paid consult, cold LinkedIn" />
       </div>
@@ -199,8 +211,8 @@
   <div class="canvas-wrap">
     <div class="canvas-header">
       <div>
-        <div class="canvas-title">grows upward as volume compounds</div>
-        <div class="hint">drag any bubble to rearrange</div>
+        <div class="canvas-title">opportunities take root below, clients bloom above</div>
+        <div class="hint">drag any bubble · drop a root under a channel to connect it there</div>
       </div>
       <div class="save-indicator" id="saveIndicator">saved</div>
     </div>
@@ -208,10 +220,12 @@
     <div class="detail-card" id="detailCard">
       <button class="close" id="detailClose">&times;</button>
       <p class="dname" id="d-name"></p>
+      <div class="drow"><span>Stage</span><b id="d-stage"></b></div>
       <div class="drow"><span>Channel</span><b id="d-channel"></b></div>
       <div class="drow"><span>Tactic</span><b id="d-tactic"></b></div>
       <div class="drow"><span>Value</span><b id="d-value"></b></div>
       <div class="drow"><span>Status</span><b id="d-status"></b></div>
+      <button class="move-btn" id="d-move"></button>
     </div>
   </div>
 </div>
@@ -228,9 +242,14 @@
   let data = {
     volumes: { enterprise: 50, affiliate: 15, founder: 80 },
     clients: [
-      { id:'seed-1', name:'50-rep account', channel:'enterprise', tactic:'ABM outbound', value:45, status:'closing', dx:0, dy:0 },
-      { id:'seed-2', name:'Charlie', channel:'affiliate', tactic:'Paid consult (Upwork)', value:7, status:'active', dx:0, dy:0 },
-      { id:'seed-3', name:'Guideless', channel:'founder', tactic:'Cold LinkedIn', value:2, status:'active', dx:0, dy:0 }
+      // canopy — converted clients
+      { id:'seed-1', name:'50-rep account', channel:'enterprise', tactic:'ABM outbound', value:45, status:'closing', stage:'client', dx:0, dy:0 },
+      { id:'seed-2', name:'Charlie', channel:'affiliate', tactic:'Paid consult (Upwork)', value:7, status:'active', stage:'client', dx:0, dy:0 },
+      { id:'seed-3', name:'Guideless', channel:'founder', tactic:'Cold LinkedIn', value:2, status:'active', stage:'client', dx:0, dy:0 },
+      // roots — opportunities in the pipeline
+      { id:'opp-1', name:'Acme Corp', channel:'enterprise', tactic:'Discovery booked', value:20, status:'active', stage:'opportunity', dx:0, dy:0 },
+      { id:'opp-2', name:'GrowthMentor lead', channel:'affiliate', tactic:'Paid consult set', value:5, status:'active', stage:'opportunity', dx:0, dy:0 },
+      { id:'opp-3', name:'Indie SaaS founder', channel:'founder', tactic:'Replied to DM', value:2, status:'active', stage:'opportunity', dx:0, dy:0 }
     ]
   };
 
@@ -272,7 +291,7 @@
       if (raw){
         const parsed = JSON.parse(raw);
         if (parsed && parsed.volumes && parsed.clients){
-          parsed.clients.forEach(c=>{ if (c.dx===undefined) c.dx=0; if (c.dy===undefined) c.dy=0; });
+          parsed.clients.forEach(c=>{ if (c.dx===undefined) c.dx=0; if (c.dy===undefined) c.dy=0; if (!c.stage) c.stage='client'; });
           data = parsed;
         }
       }
@@ -310,16 +329,18 @@
 
   function renderStats(){
     const totalVolume = Object.values(data.volumes).reduce((a,b)=>a+b,0);
-    const active = data.clients.filter(c=>c.status!=='churned');
-    const totalValue = active.reduce((a,c)=>a+Number(c.value||0),0);
+    const canopy = data.clients.filter(c=>c.stage!=='opportunity' && c.status!=='churned');
+    const roots = data.clients.filter(c=>c.stage==='opportunity');
+    const totalValue = canopy.reduce((a,c)=>a+Number(c.value||0),0);
     const byChannel = {};
     Object.keys(CHANNELS).forEach(k=>byChannel[k]=0);
-    active.forEach(c=>{ byChannel[c.channel] = (byChannel[c.channel]||0) + Number(c.value||0); });
+    canopy.forEach(c=>{ byChannel[c.channel] = (byChannel[c.channel]||0) + Number(c.value||0); });
 
     const block = document.getElementById('statBlock');
     block.innerHTML = `
       <div class="stat-row"><span>Total weekly volume</span><b>${totalVolume}</b></div>
-      <div class="stat-row"><span>Clients on the tree</span><b>${active.length}</b></div>
+      <div class="stat-row"><span>Clients in canopy</span><b>${canopy.length}</b></div>
+      <div class="stat-row"><span>Opportunities in roots</span><b>${roots.length}</b></div>
       <div class="stat-row"><span>Total seats/subs</span><b>${totalValue}</b></div>
       ${Object.keys(CHANNELS).map(k=>`<div class="stat-row"><span>${CHANNELS[k].label} seats</span><b>${byChannel[k]}</b></div>`).join('')}
     `;
@@ -328,20 +349,35 @@
   function renderClientList(){
     const list = document.getElementById('clientList');
     list.innerHTML = '';
-    data.clients.forEach(c=>{
-      const item = document.createElement('div');
-      item.className = 'client-item';
-      item.innerHTML = `
-        <span class="dot" style="background:${CHANNELS[c.channel].accent}; opacity:${c.status==='churned'?0.35:1}"></span>
-        <span class="name">${c.name}</span>
-        <span class="val">${c.value}</span>
-        <button class="del" data-id="${c.id}">&times;</button>
-      `;
-      item.addEventListener('click', (e)=>{
-        if (e.target.classList.contains('del')) return;
-        showDetail(c);
+    const groups = [
+      { key:'client', label:'Canopy · clients', items: data.clients.filter(c=>c.stage!=='opportunity') },
+      { key:'opportunity', label:'Roots · opportunities', items: data.clients.filter(c=>c.stage==='opportunity') }
+    ];
+    groups.forEach(group=>{
+      if (!group.items.length) return;
+      const head = document.createElement('div');
+      head.className = 'list-group';
+      head.textContent = group.label;
+      list.appendChild(head);
+      group.items.forEach(c=>{
+        const item = document.createElement('div');
+        item.className = 'client-item' + (c.stage==='opportunity' ? ' is-opp' : '');
+        const acc = CHANNELS[c.channel].accent;
+        const dotStyle = c.stage==='opportunity'
+          ? `background:transparent; box-shadow:inset 0 0 0 1.5px ${acc}; opacity:${c.status==='churned'?0.35:1}`
+          : `background:${acc}; opacity:${c.status==='churned'?0.35:1}`;
+        item.innerHTML = `
+          <span class="dot" style="${dotStyle}"></span>
+          <span class="name">${c.name}</span>
+          <span class="val">${c.value}</span>
+          <button class="del" data-id="${c.id}">&times;</button>
+        `;
+        item.addEventListener('click', (e)=>{
+          if (e.target.classList.contains('del')) return;
+          showDetail(c);
+        });
+        list.appendChild(item);
       });
-      list.appendChild(item);
     });
     list.querySelectorAll('.del').forEach(btn=>{
       btn.addEventListener('click', (e)=>{
@@ -354,16 +390,31 @@
     });
   }
 
+  let selectedId = null;
   function showDetail(c){
+    selectedId = c.id;
     document.getElementById('d-name').textContent = c.name;
     document.getElementById('d-channel').textContent = CHANNELS[c.channel].label;
     document.getElementById('d-tactic').textContent = c.tactic || '—';
     document.getElementById('d-value').textContent = c.value;
     document.getElementById('d-status').textContent = c.status;
+    document.getElementById('d-stage').textContent = c.stage==='opportunity' ? 'Opportunity (roots)' : 'Client (canopy)';
+    const btn = document.getElementById('d-move');
+    btn.textContent = c.stage==='opportunity' ? '↑  Graduate to client' : '↓  Move to roots';
     document.getElementById('detailCard').classList.add('show');
   }
   document.getElementById('detailClose').addEventListener('click', ()=>{
     document.getElementById('detailCard').classList.remove('show');
+    selectedId = null;
+  });
+  document.getElementById('d-move').addEventListener('click', ()=>{
+    const c = data.clients.find(x=>x.id===selectedId);
+    if (!c) return;
+    c.stage = c.stage==='opportunity' ? 'client' : 'opportunity';
+    c.dx = 0; c.dy = 0;
+    renderAll();
+    showDetail(c);
+    save();
   });
 
   function bezier(p0,p1,p2,p3){
@@ -379,6 +430,33 @@
 
   let dragState = null;
   let dragAngles = {};
+  let lastLayout = null;
+
+  function bubbleMarkup(c, bx, by){
+    const ch = CHANNELS[c.channel];
+    const r = seededRandom(hashSeed(c.id));
+    const radius = clamp(8 + Number(c.value||1)*1.1, 10, 40);
+    const isChurned = c.status === 'churned';
+    const op = isChurned ? 0.28 : (c.status==='closing' ? 0.8 : 1);
+    const dur = (3.2 + r()*2.4).toFixed(2);
+    const delay = (-(r()*3)).toFixed(2);
+    const isDraggingThis = dragState && dragState.id === c.id;
+    const angle = dragAngles[c.id];
+    const angleStyle = angle ? `transform:rotate(${angle.toFixed(1)}deg);` : '';
+    const cls = 'bubble' + (isDraggingThis?' dragging':'') + (c.stage==='opportunity'?' opp':'');
+    if (c.stage === 'opportunity'){
+      return `<g class="${cls}" data-id="${c.id}" opacity="${op}" style="--dur:${dur}s; --delay:${delay}s; ${angleStyle}">
+        <circle class="core" cx="${bx}" cy="${by}" r="${radius}" fill="url(#grad-${c.channel})" fill-opacity="0.4" stroke="${ch.accent}" stroke-width="1.5" stroke-opacity="0.75" stroke-dasharray="3,3.5"/>
+        <circle cx="${bx-radius*0.32}" cy="${by-radius*0.34}" r="${radius*0.14}" fill="#ffffff" fill-opacity="0.4"/>
+        <text x="${bx}" y="${by+radius+14}" text-anchor="middle" fill="#cfccbf" font-family="Inter, sans-serif" font-size="10" opacity="0.72">${c.name}</text>
+      </g>`;
+    }
+    return `<g class="${cls}" data-id="${c.id}" opacity="${op}" style="--dur:${dur}s; --delay:${delay}s; ${angleStyle}">
+      <circle class="core" cx="${bx}" cy="${by}" r="${radius}" fill="url(#grad-${c.channel})" stroke="#ffffff" stroke-width="1" stroke-opacity="0.14"/>
+      <circle cx="${bx-radius*0.32}" cy="${by-radius*0.34}" r="${radius*0.16}" fill="#ffffff" fill-opacity="0.5"/>
+      <text x="${bx}" y="${by+radius+15}" text-anchor="middle" fill="#ece9de" font-family="Inter, sans-serif" font-size="10.5" opacity="0.85">${c.name}</text>
+    </g>`;
+  }
 
   function renderTree(){
     const svg = document.getElementById('tree');
@@ -388,9 +466,9 @@
     const aspect = rect.height > 0 ? (rect.width / rect.height) : 1.5;
     const W = clamp(Math.round(H * aspect), 900, 2400);
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    let svgParts = [];
+    let parts = [];
 
-    svgParts.push(`<defs>
+    parts.push(`<defs>
       ${Object.keys(CHANNELS).map(k=>{
         const c = CHANNELS[k].accent;
         return `<radialGradient id="grad-${k}" cx="35%" cy="30%" r="75%">
@@ -400,131 +478,161 @@
       }).join('')}
     </defs>`);
 
-    // ground line at the very bottom, canopy grows toward the top
-    const trunkBase = { x: W/2, y: H - 60 };
-    const trunkFork = { x: W/2, y: H*0.56 };
+    // vertical composition: canopy up top, ground in the middle, roots below
+    const branchAnchorY = H*0.24;
+    const trunkFork = { x: W/2, y: H*0.40 };
+    const trunkBase = { x: W/2, y: H*0.66 };   // ground level
+    const rootBandTop = H*0.72;
+    const rootBandBottom = H*0.93;
     const totalVolume = Object.values(data.volumes).reduce((a,b)=>a+b,0) || 1;
-
-    svgParts.push(`<line x1="40" y1="${H-30}" x2="${W-40}" y2="${H-30}" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>`);
-
-    // roots reaching down from the trunk base into the ground
-    const rootCount = clamp(Math.round(totalVolume/6), 6, 28);
-    const rng = seededRandom(hashSeed('roots'));
-    let rootLines = '';
-    for (let i=0;i<rootCount;i++){
-      const t = i/(rootCount-1 || 1);
-      const spread = lerp(-380, 380, t) + (rng()-0.5)*30;
-      const endX = trunkBase.x + spread;
-      const endY = H - 20;
-      const c1 = { x: trunkBase.x + spread*0.15, y: trunkBase.y + 25 };
-      const c2 = { x: trunkBase.x + spread*0.6, y: lerp(trunkBase.y, endY, 0.7) };
-      rootLines += `<path d="${bezier(trunkBase,c1,c2,{x:endX,y:endY})}" stroke="#8a877d" stroke-opacity="0.22" stroke-width="1.4" fill="none"/>`;
-      rootLines += `<circle cx="${endX}" cy="${endY}" r="2.2" fill="#8a877d" opacity="0.3"/>`;
-    }
-    svgParts.push(rootLines);
-
-    // trunk rises from base up to the fork
-    const trunkWidth = clamp(totalVolume/9, 7, 34);
-    svgParts.push(`<path d="M ${trunkBase.x} ${trunkBase.y} C ${trunkBase.x-6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x+6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x} ${trunkFork.y}" stroke="#8a6b48" stroke-width="${trunkWidth}" fill="none" stroke-linecap="round"/>`);
 
     const order = ['enterprise','affiliate','founder'];
     const anchorX = { enterprise: W*0.22, affiliate: W*0.5, founder: W*0.78 };
-    const anchorY = H*0.40;
+    const rootAnchorX = { enterprise: W*0.26, affiliate: W*0.5, founder: W*0.74 };
+    lastLayout = { W, H, rootAnchorX, rootBandTop, rootBandBottom, trunkBase };
 
+    // ground line
+    parts.push(`<line x1="40" y1="${trunkBase.y}" x2="${W-40}" y2="${trunkBase.y}" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>`);
+
+    // faint decorative roots for soil texture
+    const rootCount = clamp(Math.round(totalVolume/8), 5, 16);
+    const rng = seededRandom(hashSeed('roots'));
+    let deco = '';
+    for (let i=0;i<rootCount;i++){
+      const t = i/(rootCount-1 || 1);
+      const spread = lerp(-W*0.34, W*0.34, t) + (rng()-0.5)*30;
+      const endX = trunkBase.x + spread*0.9;
+      const endY = lerp(rootBandTop, rootBandBottom, 0.5 + rng()*0.5);
+      const c1 = { x: trunkBase.x + spread*0.15, y: trunkBase.y + 24 };
+      const c2 = { x: trunkBase.x + spread*0.6, y: lerp(trunkBase.y, endY, 0.65) };
+      deco += `<path d="${bezier(trunkBase,c1,c2,{x:endX,y:endY})}" stroke="#8a877d" stroke-opacity="0.13" stroke-width="1.2" fill="none"/>`;
+    }
+    parts.push(deco);
+
+    // trunk rises from ground up to the fork
+    const trunkWidth = clamp(totalVolume/9, 7, 34);
+    parts.push(`<path d="M ${trunkBase.x} ${trunkBase.y} C ${trunkBase.x-6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x+6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x} ${trunkFork.y}" stroke="#8a6b48" stroke-width="${trunkWidth}" fill="none" stroke-linecap="round"/>`);
+
+    // ---- ROOTS: opportunities in the pipeline ----
+    order.forEach(key=>{
+      const ch = CHANNELS[key];
+      const opps = data.clients.filter(c=>c.channel===key && c.stage==='opportunity');
+      const n = opps.length;
+      opps.forEach((c,i)=>{
+        const r = seededRandom(hashSeed(c.id));
+        const spreadT = n>1 ? i/(n-1) : 0.5;
+        const spreadW = clamp(W*0.11, 60, 150);
+        const baseX = rootAnchorX[key] + lerp(-spreadW,spreadW,spreadT) + (r()-0.5)*22;
+        const baseY = lerp(rootBandTop+12, rootBandBottom, 0.25 + r()*0.6);
+        const bx = baseX + (c.dx||0);
+        const by = baseY + (c.dy||0);
+        const rc1 = { x: trunkBase.x + (bx-trunkBase.x)*0.25, y: trunkBase.y + 26 };
+        const rc2 = { x: bx, y: by - 55 };
+        const rootWidth = clamp(Number(c.value||1)/10, 1.2, 4.5);
+        const isChurned = c.status === 'churned';
+        const op = isChurned ? 0.3 : 1;
+        parts.push(`<path d="${bezier(trunkBase,rc1,rc2,{x:bx,y:by})}" stroke="${ch.accent}" stroke-opacity="${op*0.4}" stroke-width="${rootWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
+        parts.push(bubbleMarkup(c, bx, by));
+      });
+    });
+
+    // ---- CANOPY: branches + converted clients ----
     order.forEach(key=>{
       const ch = CHANNELS[key];
       const vol = data.volumes[key] || 0;
-      const anchor = { x: anchorX[key], y: anchorY };
+      const anchor = { x: anchorX[key], y: branchAnchorY };
       const branchWidth = clamp(vol/7, 3, 20);
       const c1 = { x: trunkFork.x, y: lerp(trunkFork.y, anchor.y, 0.3) };
       const c2 = { x: anchor.x, y: lerp(trunkFork.y, anchor.y, 0.8) };
-      svgParts.push(`<path d="${bezier(trunkFork,c1,c2,anchor)}" stroke="${ch.accent}" stroke-opacity="0.55" stroke-width="${branchWidth}" fill="none" stroke-linecap="round"/>`);
+      parts.push(`<path d="${bezier(trunkFork,c1,c2,anchor)}" stroke="${ch.accent}" stroke-opacity="0.55" stroke-width="${branchWidth}" fill="none" stroke-linecap="round"/>`);
 
-      svgParts.push(`<text x="${anchor.x}" y="${anchor.y - 16}" text-anchor="middle" fill="${ch.accent}" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1" opacity="0.85">${ch.label.toUpperCase()} · ${vol}/wk</text>`);
+      parts.push(`<text x="${anchor.x}" y="${anchor.y - 16}" text-anchor="middle" fill="${ch.accent}" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1" opacity="0.85">${ch.label.toUpperCase()} · ${vol}/wk</text>`);
 
-      const clients = data.clients.filter(c=>c.channel===key);
+      const clients = data.clients.filter(c=>c.channel===key && c.stage!=='opportunity');
       const n = clients.length;
       clients.forEach((c,i)=>{
-        const seed = hashSeed(c.id);
-        const r = seededRandom(seed);
+        const r = seededRandom(hashSeed(c.id));
         const spreadT = n>1 ? i/(n-1) : 0.5;
-        const jitterX = (r()-0.5)*40;
-        const baseX = anchor.x + lerp(-160,160,spreadT) + jitterX;
+        const baseX = anchor.x + lerp(-160,160,spreadT) + (r()-0.5)*40;
         const normVal = clamp(Number(c.value||1)/50, 0, 1);
-        const baseY = lerp(anchor.y - 30, anchor.y - 260, normVal) + (r()-0.5)*20;
-
+        const baseY = lerp(anchor.y - 26, H*0.06, normVal) + (r()-0.5)*20;
         const bx = baseX + (c.dx||0);
         const by = baseY + (c.dy||0);
 
-        const tc1 = { x: anchor.x + (bx-anchor.x)*0.3, y: anchor.y - 30 };
+        const tc1 = { x: anchor.x + (bx-anchor.x)*0.3, y: anchor.y - 26 };
         const tc2 = { x: bx, y: by + 70 };
         const twigWidth = clamp(Number(c.value||1)/9, 1, 5.5);
         const isChurned = c.status === 'churned';
         const op = isChurned ? 0.28 : (c.status==='closing' ? 0.75 : 1);
 
-        svgParts.push(`<path d="${bezier(anchor,tc1,tc2,{x:bx,y:by})}" stroke="${ch.accent}" stroke-opacity="${op*0.55}" stroke-width="${twigWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
-
-        const radius = clamp(8 + Number(c.value||1)*1.1, 10, 40);
-        const dur = (3.2 + r()*2.4).toFixed(2);
-        const delay = (-(r()*3)).toFixed(2);
-        const isDraggingThis = dragState && dragState.id === c.id;
-        const angle = dragAngles[c.id];
-        const angleStyle = angle ? `transform:rotate(${angle.toFixed(1)}deg);` : '';
-        svgParts.push(`<g class="bubble${isDraggingThis?' dragging':''}" data-id="${c.id}" opacity="${op}" style="--dur:${dur}s; --delay:${delay}s; ${angleStyle}">
-          <circle class="core" cx="${bx}" cy="${by}" r="${radius}" fill="url(#grad-${key})" stroke="#ffffff" stroke-width="1" stroke-opacity="0.14"/>
-          <circle cx="${bx-radius*0.32}" cy="${by-radius*0.34}" r="${radius*0.16}" fill="#ffffff" fill-opacity="0.5"/>
-          <text x="${bx}" y="${by+radius+15}" text-anchor="middle" fill="#ece9de" font-family="Inter, sans-serif" font-size="10.5" opacity="0.85">${c.name}</text>
-        </g>`);
+        parts.push(`<path d="${bezier(anchor,tc1,tc2,{x:bx,y:by})}" stroke="${ch.accent}" stroke-opacity="${op*0.55}" stroke-width="${twigWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
+        parts.push(bubbleMarkup(c, bx, by));
       });
     });
 
-    svg.innerHTML = svgParts.join('');
+    svg.innerHTML = parts.join('');
+  }
 
-    svg.querySelectorAll('.bubble').forEach(g=>{
+  // ---- drag: one set of handlers on the svg, survives re-renders ----
+  function setupDrag(){
+    const svg = document.getElementById('tree');
+    svg.addEventListener('pointerdown', (e)=>{
+      const g = e.target.closest && e.target.closest('.bubble');
+      if (!g) return;
       const id = g.getAttribute('data-id');
-      let moved = false;
+      const client = data.clients.find(x=>x.id===id);
+      if (!client) return;
+      const start = toSvgPoint(svg, e.clientX, e.clientY);
+      dragState = { id, startX:start.x, startY:start.y, lastX:start.x, startDx:client.dx||0, startDy:client.dy||0, moved:false };
+      svg.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    svg.addEventListener('pointermove', (e)=>{
+      if (!dragState) return;
+      const cur = toSvgPoint(svg, e.clientX, e.clientY);
+      const dX = cur.x - dragState.startX;
+      const dY = cur.y - dragState.startY;
+      if (Math.abs(dX) > 2 || Math.abs(dY) > 2) dragState.moved = true;
+      const client = data.clients.find(x=>x.id===dragState.id);
+      if (!client) return;
+      const stepX = cur.x - dragState.lastX;
+      dragState.lastX = cur.x;
+      dragAngles[dragState.id] = clamp((dragAngles[dragState.id]||0)*0.6 + stepX*1.2, -20, 20);
+      client.dx = dragState.startDx + dX;
+      client.dy = dragState.startDy + dY;
+      renderTree();
+    });
+    svg.addEventListener('pointerup', ()=>{
+      if (!dragState) return;
+      const id = dragState.id;
+      const moved = dragState.moved;
+      const client = data.clients.find(x=>x.id===id);
+      dragState = null;
+      delete dragAngles[id];
 
-      g.addEventListener('pointerdown', (e)=>{
-        e.preventDefault();
-        const client = data.clients.find(x=>x.id===id);
-        if (!client) return;
-        moved = false;
-        const start = toSvgPoint(svg, e.clientX, e.clientY);
-        dragState = { id, startX: start.x, startY: start.y, startDx: client.dx||0, startDy: client.dy||0 };
-        g.setPointerCapture(e.pointerId);
-      });
-      g.addEventListener('pointermove', (e)=>{
-        if (!dragState || dragState.id !== id) return;
-        const cur = toSvgPoint(svg, e.clientX, e.clientY);
-        const deltaX = cur.x - dragState.startX;
-        const deltaY = cur.y - dragState.startY;
-        if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) moved = true;
-        const client = data.clients.find(x=>x.id===id);
-        if (!client) return;
-        const stepX = cur.x - (dragState.lastX ?? dragState.startX);
-        dragState.lastX = cur.x;
-        dragAngles[id] = clamp((dragAngles[id]||0)*0.5 + stepX*1.4, -22, 22);
-        client.dx = dragState.startDx + deltaX;
-        client.dy = dragState.startDy + deltaY;
-        renderTree();
-      });
-      g.addEventListener('pointerup', (e)=>{
-        if (dragState && dragState.id === id){
-          dragState = null;
-          delete dragAngles[id];
-          renderTree();
-          const el = svg.querySelector(`.bubble[data-id="${id}"]`);
-          if (el){
-            el.classList.add('settle');
-            el.addEventListener('animationend', ()=> el.classList.remove('settle'), { once:true });
-          }
-          save();
+      // dropping an opportunity into another channel's zone re-connects it there
+      if (client && client.stage==='opportunity' && moved && lastLayout){
+        const el = svg.querySelector(`.bubble[data-id="${id}"] circle.core`);
+        if (el){
+          const absX = Number(el.getAttribute('cx'));
+          let nearest = client.channel, best = Infinity;
+          Object.keys(lastLayout.rootAnchorX).forEach(k=>{
+            const d = Math.abs(absX - lastLayout.rootAnchorX[k]);
+            if (d < best){ best = d; nearest = k; }
+          });
+          if (nearest !== client.channel){ client.channel = nearest; client.dx = 0; client.dy = 0; }
         }
-        if (!moved){
-          const client = data.clients.find(x=>x.id===id);
-          if (client) showDetail(client);
-        }
-      });
+      }
+
+      renderTree();
+      const g = svg.querySelector(`.bubble[data-id="${id}"]`);
+      if (g && moved){
+        g.classList.add('settle');
+        g.addEventListener('animationend', ()=> g.classList.remove('settle'), { once:true });
+      }
+      if (!moved && client) showDetail(client);
+      if (moved){ renderStats(); renderClientList(); }
+      save();
     });
   }
 
@@ -540,12 +648,13 @@
     const name = document.getElementById('f-name').value.trim();
     if (!name) return;
     const channel = document.getElementById('f-channel').value;
+    const stage = document.getElementById('f-stage').value;
     const tactic = document.getElementById('f-tactic').value.trim();
     const value = Number(document.getElementById('f-value').value) || 1;
     const status = document.getElementById('f-status').value;
     data.clients.push({
       id: 'c-' + Date.now() + '-' + Math.floor(Math.random()*1000),
-      name, channel, tactic, value, status, dx:0, dy:0
+      name, channel, stage, tactic, value, status, dx:0, dy:0
     });
     e.target.reset();
     document.getElementById('f-value').value = 1;
@@ -561,6 +670,7 @@
 
   (async function init(){
     await load();
+    setupDrag();
     renderAll();
   })();
 })();
