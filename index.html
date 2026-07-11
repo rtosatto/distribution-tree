@@ -122,6 +122,9 @@
     80%{ transform: rotate(-3deg); }
     100%{ transform: rotate(0deg); }
   }
+  @keyframes flow{ to{ stroke-dashoffset: -24; } }
+  .flow{ animation: flow 1.7s linear infinite; }
+  @media (prefers-reduced-motion: reduce){ .flow{ animation:none; } }
   .bubble{
     cursor:grab;
     transform-box: fill-box;
@@ -137,17 +140,31 @@
   .bubble:hover circle.core{ filter:brightness(1.1); }
 
   .detail-card{
-    position:absolute; bottom:22px; right:22px; width:250px;
+    position:absolute; bottom:22px; right:22px; width:264px;
     background:var(--panel-bg); backdrop-filter:blur(14px); border:1px solid var(--panel-border);
-    border-radius:14px; padding:15px 17px; font-size:12px; display:none; z-index:3;
+    border-radius:14px; padding:16px 17px 15px; font-size:12px; display:none; z-index:3;
   }
   .detail-card.show{ display:block; }
-  .detail-card .dname{ font-family:'Fraunces',serif; font-size:16px; margin:0 0 8px 0; }
-  .detail-card .drow{ display:flex; justify-content:space-between; padding:3px 0; color:var(--line-dim); font-family:'IBM Plex Mono',monospace; font-size:11px; }
-  .detail-card .drow b{ color:var(--line); font-weight:500; }
-  .detail-card .close{ position:absolute; top:9px; right:11px; background:none; border:none; color:var(--line-dim); cursor:pointer; font-size:14px; }
-  .detail-card .move-btn{ margin-top:12px; width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:var(--line); border-radius:8px; padding:8px; font-size:11.5px; font-family:'Inter',sans-serif; cursor:pointer; transition:background 0.15s, border-color 0.15s; }
-  .detail-card .move-btn:hover{ background:rgba(255,255,255,0.09); border-color:var(--wood); }
+  .detail-card .close{ position:absolute; top:9px; right:11px; background:none; border:none; color:var(--line-dim); cursor:pointer; font-size:15px; line-height:1; z-index:2; }
+  .detail-card label{ font-size:9.5px; color:var(--line-dim); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 3px 2px; display:block; }
+  .detail-card .d-title{
+    font-family:'Fraunces',serif; font-size:18px; font-weight:600; color:var(--line);
+    background:transparent; border:none; border-bottom:1px solid transparent; width:calc(100% - 16px);
+    padding:0 0 4px 0; margin-bottom:12px; transition:border-color 0.15s;
+  }
+  .detail-card .d-title:focus{ outline:none; border-bottom-color:var(--wood); }
+  .detail-card .d-title::placeholder{ color:var(--line-dim); opacity:0.5; }
+  .detail-card input, .detail-card select{
+    background:rgba(255,255,255,0.04); border:1px solid var(--panel-border); color:var(--line);
+    border-radius:7px; padding:7px 9px; font-size:12px; font-family:'Inter',sans-serif; width:100%;
+    transition:border-color 0.15s;
+  }
+  .detail-card input:focus, .detail-card select:focus{ outline:none; border-color:var(--wood); }
+  .detail-card > input:not(.d-title), .detail-card > label{ margin-bottom:9px; }
+  .detail-card > label{ margin-bottom:3px; }
+  .d-grid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:10px; }
+  .detail-card .d-delete{ margin-top:12px; width:100%; background:none; border:1px solid var(--panel-border); color:var(--line-dim); border-radius:8px; padding:8px; font-size:11px; font-family:'IBM Plex Mono',monospace; letter-spacing:0.04em; cursor:pointer; transition:color 0.15s, border-color 0.15s, background 0.15s; }
+  .detail-card .d-delete:hover{ color:#e0b4b4; border-color:var(--churn); background:rgba(138,90,90,0.12); }
 </style>
 </head>
 <body>
@@ -219,13 +236,41 @@
     <svg id="tree" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="detail-card" id="detailCard">
       <button class="close" id="detailClose">&times;</button>
-      <p class="dname" id="d-name"></p>
-      <div class="drow"><span>Stage</span><b id="d-stage"></b></div>
-      <div class="drow"><span>Channel</span><b id="d-channel"></b></div>
-      <div class="drow"><span>Tactic</span><b id="d-tactic"></b></div>
-      <div class="drow"><span>Value</span><b id="d-value"></b></div>
-      <div class="drow"><span>Status</span><b id="d-status"></b></div>
-      <button class="move-btn" id="d-move"></button>
+      <input class="d-title" id="d-name" placeholder="Name" />
+      <div class="d-grid">
+        <div>
+          <label>Stage</label>
+          <select id="d-stage">
+            <option value="opportunity">Opportunity</option>
+            <option value="client">Client</option>
+          </select>
+        </div>
+        <div>
+          <label>Channel</label>
+          <select id="d-channel">
+            <option value="enterprise">Enterprise</option>
+            <option value="affiliate">Affiliate</option>
+            <option value="founder">Founder</option>
+          </select>
+        </div>
+      </div>
+      <label>Tactic</label>
+      <input id="d-tactic" placeholder="e.g. Paid consult, cold LinkedIn" />
+      <div class="d-grid">
+        <div>
+          <label>Value</label>
+          <input id="d-value" type="number" min="1" />
+        </div>
+        <div>
+          <label>Status</label>
+          <select id="d-status">
+            <option value="active">Active</option>
+            <option value="closing">Closing</option>
+            <option value="churned">Churned</option>
+          </select>
+        </div>
+      </div>
+      <button class="d-delete" id="d-delete">Delete from tree</button>
     </div>
   </div>
 </div>
@@ -393,29 +438,45 @@
   let selectedId = null;
   function showDetail(c){
     selectedId = c.id;
-    document.getElementById('d-name').textContent = c.name;
-    document.getElementById('d-channel').textContent = CHANNELS[c.channel].label;
-    document.getElementById('d-tactic').textContent = c.tactic || '—';
-    document.getElementById('d-value').textContent = c.value;
-    document.getElementById('d-status').textContent = c.status;
-    document.getElementById('d-stage').textContent = c.stage==='opportunity' ? 'Opportunity (roots)' : 'Client (canopy)';
-    const btn = document.getElementById('d-move');
-    btn.textContent = c.stage==='opportunity' ? '↑  Graduate to client' : '↓  Move to roots';
+    document.getElementById('d-name').value = c.name;
+    document.getElementById('d-stage').value = c.stage==='opportunity' ? 'opportunity' : 'client';
+    document.getElementById('d-channel').value = c.channel;
+    document.getElementById('d-tactic').value = c.tactic || '';
+    document.getElementById('d-value').value = c.value;
+    document.getElementById('d-status').value = c.status;
     document.getElementById('detailCard').classList.add('show');
   }
   document.getElementById('detailClose').addEventListener('click', ()=>{
     document.getElementById('detailCard').classList.remove('show');
     selectedId = null;
   });
-  document.getElementById('d-move').addEventListener('click', ()=>{
-    const c = data.clients.find(x=>x.id===selectedId);
-    if (!c) return;
-    c.stage = c.stage==='opportunity' ? 'client' : 'opportunity';
-    c.dx = 0; c.dy = 0;
-    renderAll();
-    showDetail(c);
-    save();
-  });
+
+  function bindDetailEditors(){
+    const apply = ()=>{
+      const c = data.clients.find(x=>x.id===selectedId);
+      if (!c) return;
+      const prevStage = c.stage;
+      c.name = document.getElementById('d-name').value;
+      c.stage = document.getElementById('d-stage').value;
+      c.channel = document.getElementById('d-channel').value;
+      c.tactic = document.getElementById('d-tactic').value.trim();
+      c.value = Number(document.getElementById('d-value').value) || 1;
+      c.status = document.getElementById('d-status').value;
+      if (prevStage !== c.stage){ c.dx = 0; c.dy = 0; }
+      renderTree(); renderStats(); renderClientList();
+      save();
+    };
+    ['d-name','d-tactic','d-value'].forEach(id=>document.getElementById(id).addEventListener('input', apply));
+    ['d-stage','d-channel','d-status'].forEach(id=>document.getElementById(id).addEventListener('change', apply));
+    document.getElementById('d-delete').addEventListener('click', ()=>{
+      if (!selectedId) return;
+      data.clients = data.clients.filter(x=>x.id!==selectedId);
+      selectedId = null;
+      document.getElementById('detailCard').classList.remove('show');
+      renderAll();
+      save();
+    });
+  }
 
   function bezier(p0,p1,p2,p3){
     return `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y}`;
@@ -468,6 +529,14 @@
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     let parts = [];
 
+    // vertical composition: canopy up top, ground in the middle, roots below
+    const branchAnchorY = H*0.24;
+    const trunkFork = { x: W/2, y: H*0.40 };
+    const trunkBase = { x: W/2, y: H*0.66 };   // ground level
+    const rootBandTop = H*0.72;
+    const rootBandBottom = H*0.93;
+    const totalVolume = Object.values(data.volumes).reduce((a,b)=>a+b,0) || 1;
+
     parts.push(`<defs>
       ${Object.keys(CHANNELS).map(k=>{
         const c = CHANNELS[k].accent;
@@ -476,15 +545,20 @@
           <stop offset="100%" stop-color="${c}"/>
         </radialGradient>`;
       }).join('')}
+      <linearGradient id="trunkGrad" gradientUnits="userSpaceOnUse" x1="0" y1="${trunkFork.y}" x2="0" y2="${trunkBase.y}">
+        <stop offset="0%" stop-color="#b79a6e"/>
+        <stop offset="100%" stop-color="#5f6a6e"/>
+      </linearGradient>
+      <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f3ead6" stop-opacity="0.95"/>
+        <stop offset="45%" stop-color="#cdae7e" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#cdae7e" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="6" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
     </defs>`);
-
-    // vertical composition: canopy up top, ground in the middle, roots below
-    const branchAnchorY = H*0.24;
-    const trunkFork = { x: W/2, y: H*0.40 };
-    const trunkBase = { x: W/2, y: H*0.66 };   // ground level
-    const rootBandTop = H*0.72;
-    const rootBandBottom = H*0.93;
-    const totalVolume = Object.values(data.volumes).reduce((a,b)=>a+b,0) || 1;
 
     const order = ['enterprise','affiliate','founder'];
     const anchorX = { enterprise: W*0.22, affiliate: W*0.5, founder: W*0.78 };
@@ -509,9 +583,22 @@
     }
     parts.push(deco);
 
-    // trunk rises from ground up to the fork
-    const trunkWidth = clamp(totalVolume/9, 7, 34);
-    parts.push(`<path d="M ${trunkBase.x} ${trunkBase.y} C ${trunkBase.x-6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x+6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x} ${trunkFork.y}" stroke="#8a6b48" stroke-width="${trunkWidth}" fill="none" stroke-linecap="round"/>`);
+    // trunk = a glowing conduit; information pulses flow down it from canopy to roots
+    const trunkWidth = clamp(totalVolume/9, 9, 34);
+    const trunkDown = `M ${trunkFork.x} ${trunkFork.y} C ${trunkFork.x+5} ${lerp(trunkFork.y,trunkBase.y,0.5)}, ${trunkBase.x-5} ${lerp(trunkFork.y,trunkBase.y,0.5)}, ${trunkBase.x} ${trunkBase.y}`;
+    parts.push(`<path d="${trunkDown}" stroke="url(#trunkGrad)" stroke-opacity="0.22" stroke-width="${trunkWidth+10}" fill="none" stroke-linecap="round" filter="url(#softGlow)"/>`);
+    parts.push(`<path d="${trunkDown}" stroke="url(#trunkGrad)" stroke-width="${trunkWidth}" fill="none" stroke-linecap="round"/>`);
+    parts.push(`<path d="${trunkDown}" stroke="#ffffff" stroke-opacity="0.06" stroke-width="${Math.max(2,trunkWidth*0.5)}" fill="none" stroke-linecap="round"/>`);
+    parts.push(`<path class="flow" d="${trunkDown}" stroke="#f4ecd8" stroke-opacity="0.9" stroke-width="${clamp(trunkWidth*0.32,2.5,7)}" fill="none" stroke-linecap="round" stroke-dasharray="3 21"/>`);
+
+    // hub nodes at the fork and the base hide the seams and read as synapses
+    let nodeParts = '';
+    const forkR = clamp(trunkWidth*0.62, 9, 20);
+    nodeParts += `<circle cx="${trunkFork.x}" cy="${trunkFork.y}" r="${forkR*1.7}" fill="url(#nodeGlow)"/>`;
+    nodeParts += `<circle cx="${trunkFork.x}" cy="${trunkFork.y}" r="${forkR*0.5}" fill="#f6efdd" fill-opacity="0.92"/>`;
+    const baseR = clamp(trunkWidth*0.55, 8, 16);
+    nodeParts += `<circle cx="${trunkBase.x}" cy="${trunkBase.y}" r="${baseR*1.7}" fill="url(#nodeGlow)"/>`;
+    nodeParts += `<circle cx="${trunkBase.x}" cy="${trunkBase.y}" r="${baseR*0.45}" fill="#f6efdd" fill-opacity="0.85"/>`;
 
     // ---- ROOTS: opportunities in the pipeline ----
     order.forEach(key=>{
@@ -520,9 +607,8 @@
       const n = opps.length;
       opps.forEach((c,i)=>{
         const r = seededRandom(hashSeed(c.id));
-        const spreadT = n>1 ? i/(n-1) : 0.5;
-        const spreadW = clamp(W*0.11, 60, 150);
-        const baseX = rootAnchorX[key] + lerp(-spreadW,spreadW,spreadT) + (r()-0.5)*22;
+        const spacing = clamp(W*0.05, 34, 58);
+        const baseX = rootAnchorX[key] + (i - (n-1)/2)*spacing + (r()-0.5)*18;
         const baseY = lerp(rootBandTop+12, rootBandBottom, 0.25 + r()*0.6);
         const bx = baseX + (c.dx||0);
         const by = baseY + (c.dy||0);
@@ -531,7 +617,11 @@
         const rootWidth = clamp(Number(c.value||1)/10, 1.2, 4.5);
         const isChurned = c.status === 'churned';
         const op = isChurned ? 0.3 : 1;
-        parts.push(`<path d="${bezier(trunkBase,rc1,rc2,{x:bx,y:by})}" stroke="${ch.accent}" stroke-opacity="${op*0.4}" stroke-width="${rootWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
+        const rootPath = bezier(trunkBase,rc1,rc2,{x:bx,y:by});
+        parts.push(`<path d="${rootPath}" stroke="${ch.accent}" stroke-opacity="${op*0.4}" stroke-width="${rootWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
+        if (!isChurned){
+          parts.push(`<path class="flow" d="${rootPath}" stroke="${shade(ch.accent,0.5)}" stroke-opacity="0.8" stroke-width="${clamp(rootWidth*0.7,1.6,3.5)}" fill="none" stroke-linecap="round" stroke-dasharray="3 21"/>`);
+        }
         parts.push(bubbleMarkup(c, bx, by));
       });
     });
@@ -544,7 +634,11 @@
       const branchWidth = clamp(vol/7, 3, 20);
       const c1 = { x: trunkFork.x, y: lerp(trunkFork.y, anchor.y, 0.3) };
       const c2 = { x: anchor.x, y: lerp(trunkFork.y, anchor.y, 0.8) };
-      parts.push(`<path d="${bezier(trunkFork,c1,c2,anchor)}" stroke="${ch.accent}" stroke-opacity="0.55" stroke-width="${branchWidth}" fill="none" stroke-linecap="round"/>`);
+      const branchUp = bezier(trunkFork,c1,c2,anchor);
+      const branchDown = `M ${anchor.x} ${anchor.y} C ${c2.x} ${c2.y}, ${c1.x} ${c1.y}, ${trunkFork.x} ${trunkFork.y}`;
+      parts.push(`<path d="${branchUp}" stroke="${ch.accent}" stroke-opacity="0.18" stroke-width="${branchWidth+8}" fill="none" stroke-linecap="round" filter="url(#softGlow)"/>`);
+      parts.push(`<path d="${branchUp}" stroke="${ch.accent}" stroke-opacity="0.6" stroke-width="${branchWidth}" fill="none" stroke-linecap="round"/>`);
+      parts.push(`<path class="flow" d="${branchDown}" stroke="${shade(ch.accent,0.55)}" stroke-opacity="0.9" stroke-width="${clamp(branchWidth*0.4,2,5)}" fill="none" stroke-linecap="round" stroke-dasharray="3 21"/>`);
 
       parts.push(`<text x="${anchor.x}" y="${anchor.y - 16}" text-anchor="middle" fill="${ch.accent}" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1" opacity="0.85">${ch.label.toUpperCase()} · ${vol}/wk</text>`);
 
@@ -552,10 +646,10 @@
       const n = clients.length;
       clients.forEach((c,i)=>{
         const r = seededRandom(hashSeed(c.id));
-        const spreadT = n>1 ? i/(n-1) : 0.5;
-        const baseX = anchor.x + lerp(-160,160,spreadT) + (r()-0.5)*40;
+        const spacing = clamp(W*0.055, 40, 66);
+        const baseX = anchor.x + (i - (n-1)/2)*spacing + (r()-0.5)*22;
         const normVal = clamp(Number(c.value||1)/50, 0, 1);
-        const baseY = lerp(anchor.y - 26, H*0.06, normVal) + (r()-0.5)*20;
+        const baseY = lerp(anchor.y - 52, H*0.06, normVal) + (r()-0.5)*16 - (i%2)*22;
         const bx = baseX + (c.dx||0);
         const by = baseY + (c.dy||0);
 
@@ -569,6 +663,8 @@
         parts.push(bubbleMarkup(c, bx, by));
       });
     });
+
+    parts.push(nodeParts);
 
     svg.innerHTML = parts.join('');
   }
@@ -671,6 +767,7 @@
   (async function init(){
     await load();
     setupDrag();
+    bindDetailEditors();
     renderAll();
   })();
 })();
