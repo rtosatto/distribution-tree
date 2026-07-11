@@ -108,15 +108,16 @@
 
   .canvas-wrap{ height:100%; }
   svg{ display:block; width:100%; height:100%; }
+  @keyframes bob{
     0%,100%{ transform: translateY(0px) rotate(0deg); }
     50%{ transform: translateY(-7px) rotate(-2deg); }
   }
-  @keyframes wobble{
-    0%{ transform: scale(1,1) rotate(0deg); }
-    25%{ transform: scale(1.1,0.9) rotate(4deg); }
-    50%{ transform: scale(0.93,1.08) rotate(-4deg); }
-    75%{ transform: scale(1.05,0.96) rotate(2deg); }
-    100%{ transform: scale(1,1) rotate(0deg); }
+  @keyframes swing{
+    0%{ transform: rotate(0deg); }
+    25%{ transform: rotate(-9deg); }
+    55%{ transform: rotate(7deg); }
+    80%{ transform: rotate(-3deg); }
+    100%{ transform: rotate(0deg); }
   }
   .bubble{
     cursor:grab;
@@ -125,10 +126,12 @@
     animation: bob var(--dur, 4s) ease-in-out infinite;
     animation-delay: var(--delay, 0s);
   }
-  .bubble:hover{ animation: wobble 0.7s ease-in-out; }
-  .bubble:active{ cursor:grabbing; animation:none; }
+  .bubble:hover{ animation: swing 0.6s ease-in-out; }
+  .bubble.dragging{ animation:none; }
+  .bubble.settle{ animation: swing 0.5s ease-out; }
+  .bubble:active{ cursor:grabbing; }
   .bubble circle.core{ transition:filter 0.15s; }
-  .bubble:hover circle.core{ filter:brightness(1.15); }
+  .bubble:hover circle.core{ filter:brightness(1.1); }
 
   .detail-card{
     position:absolute; bottom:22px; right:22px; width:250px;
@@ -375,6 +378,7 @@
   }
 
   let dragState = null;
+  let dragAngles = {};
 
   function renderTree(){
     const svg = document.getElementById('tree');
@@ -389,16 +393,11 @@
     svgParts.push(`<defs>
       ${Object.keys(CHANNELS).map(k=>{
         const c = CHANNELS[k].accent;
-        return `<radialGradient id="grad-${k}" cx="32%" cy="26%" r="78%">
-          <stop offset="0%" stop-color="${shade(c,0.6)}"/>
-          <stop offset="55%" stop-color="${c}"/>
-          <stop offset="100%" stop-color="${shade(c,-0.2)}"/>
+        return `<radialGradient id="grad-${k}" cx="35%" cy="30%" r="75%">
+          <stop offset="0%" stop-color="${shade(c,0.35)}"/>
+          <stop offset="100%" stop-color="${c}"/>
         </radialGradient>`;
       }).join('')}
-      <filter id="bubbleSoft" x="-60%" y="-60%" width="220%" height="220%">
-        <feGaussianBlur stdDeviation="0.8" result="blur"/>
-        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
     </defs>`);
 
     // ground line at the very bottom, canopy grows toward the top
@@ -468,9 +467,12 @@
         const radius = clamp(8 + Number(c.value||1)*1.1, 10, 40);
         const dur = (3.2 + r()*2.4).toFixed(2);
         const delay = (-(r()*3)).toFixed(2);
-        svgParts.push(`<g class="bubble" data-id="${c.id}" opacity="${op}" style="--dur:${dur}s; --delay:${delay}s;">
-          <circle class="core" cx="${bx}" cy="${by}" r="${radius}" fill="url(#grad-${key})" stroke="${shade(ch.accent,0.4)}" stroke-width="1" stroke-opacity="0.5" filter="url(#bubbleSoft)"/>
-          <ellipse cx="${bx-radius*0.32}" cy="${by-radius*0.38}" rx="${radius*0.26}" ry="${radius*0.16}" fill="#ffffff" fill-opacity="0.55" transform="rotate(-25 ${bx-radius*0.32} ${by-radius*0.38})"/>
+        const isDraggingThis = dragState && dragState.id === c.id;
+        const angle = dragAngles[c.id];
+        const angleStyle = angle ? `transform:rotate(${angle.toFixed(1)}deg);` : '';
+        svgParts.push(`<g class="bubble${isDraggingThis?' dragging':''}" data-id="${c.id}" opacity="${op}" style="--dur:${dur}s; --delay:${delay}s; ${angleStyle}">
+          <circle class="core" cx="${bx}" cy="${by}" r="${radius}" fill="url(#grad-${key})" stroke="#ffffff" stroke-width="1" stroke-opacity="0.14"/>
+          <circle cx="${bx-radius*0.32}" cy="${by-radius*0.34}" r="${radius*0.16}" fill="#ffffff" fill-opacity="0.5"/>
           <text x="${bx}" y="${by+radius+15}" text-anchor="middle" fill="#ece9de" font-family="Inter, sans-serif" font-size="10.5" opacity="0.85">${c.name}</text>
         </g>`);
       });
@@ -499,6 +501,9 @@
         if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) moved = true;
         const client = data.clients.find(x=>x.id===id);
         if (!client) return;
+        const stepX = cur.x - (dragState.lastX ?? dragState.startX);
+        dragState.lastX = cur.x;
+        dragAngles[id] = clamp((dragAngles[id]||0)*0.5 + stepX*1.4, -22, 22);
         client.dx = dragState.startDx + deltaX;
         client.dy = dragState.startDy + deltaY;
         renderTree();
@@ -506,6 +511,13 @@
       g.addEventListener('pointerup', (e)=>{
         if (dragState && dragState.id === id){
           dragState = null;
+          delete dragAngles[id];
+          renderTree();
+          const el = svg.querySelector(`.bubble[data-id="${id}"]`);
+          if (el){
+            el.classList.add('settle');
+            el.addEventListener('animationend', ()=> el.classList.remove('settle'), { once:true });
+          }
           save();
         }
         if (!moved){
