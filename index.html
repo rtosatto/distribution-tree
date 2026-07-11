@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Sendio Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg: #0a0b0a;
+    --bg-glow: radial-gradient(ellipse 900px 500px at 50% 8%, #1a2420 0%, transparent 70%);
+    --panel-bg: rgba(20,23,21,0.72);
+    --panel-border: rgba(255,255,255,0.07);
+    --line: #ece9de;
+    --line-dim: #8f8c81;
+    --wood: #8a6b48;
+    --enterprise: #d4a24a;
+    --affiliate: #74b895;
+    --founder: #6f9bc4;
+    --churn: #8a5a5a;
+    --radius: 16px;
+  }
+  *{box-sizing:border-box;}
+  html, body{ margin:0; padding:0; height:100%; background:var(--bg); }
+  .tree-app{
+    background:var(--bg) var(--bg-glow);
+    color:var(--line);
+    font-family:'Inter',sans-serif;
+    border-radius:0;
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    height:100vh;
+    min-height:600px;
+    overflow:hidden;
+    border:none;
+    position:relative;
+  }
+  @media (max-width: 860px){
+    .tree-app{ grid-template-columns: 1fr; height:auto; min-height:100vh; }
+    .panel{ max-height:340px; }
+  }
+  .panel{
+    background:var(--panel-bg);
+    backdrop-filter:blur(14px);
+    border-right:1px solid var(--panel-border);
+    padding:24px 20px;
+    overflow-y:auto;
+    height:100%;
+    scrollbar-width:thin;
+  }
+  .panel::-webkit-scrollbar{ width:6px; }
+  .panel::-webkit-scrollbar-thumb{ background:#333; border-radius:3px; }
+
+  .brand{ font-family:'Fraunces',serif; font-size:21px; font-weight:600; letter-spacing:-0.01em; margin:0 0 2px 0; }
+  .brand-sub{ font-size:11px; color:var(--line-dim); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.09em; margin:0 0 22px 0; }
+  .section-label{ font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--line-dim); margin:24px 0 12px 0; display:flex; align-items:center; gap:6px; }
+  .section-label::after{ content:''; flex:1; height:1px; background:var(--panel-border); }
+
+  .channel-card{ background:rgba(255,255,255,0.03); border:1px solid var(--panel-border); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+  .channel-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .swatch{ width:8px;height:8px;border-radius:50%; flex-shrink:0; }
+  .channel-row label{ font-size:12.5px; flex:1; font-weight:500; }
+  .channel-row .num{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--line-dim); min-width:26px; text-align:right; }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:3px; border-radius:2px; background:rgba(255,255,255,0.12); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--line); cursor:pointer; border:2px solid var(--bg);
+  }
+
+  .stat-block{ background:rgba(255,255,255,0.03); border:1px solid var(--panel-border); border-radius:12px; padding:13px 14px; margin-bottom:6px; }
+  .stat-row{ display:flex;justify-content:space-between; font-size:12px; font-family:'IBM Plex Mono',monospace; color:var(--line-dim); padding:3px 0; }
+  .stat-row b{ color:var(--line); font-weight:500; }
+
+  form.add-form{ display:flex; flex-direction:column; gap:9px; }
+  .add-form input, .add-form select{
+    background:rgba(255,255,255,0.04); border:1px solid var(--panel-border); color:var(--line);
+    border-radius:8px; padding:8px 10px; font-size:12.5px; font-family:'Inter',sans-serif; width:100%;
+    transition:border-color 0.15s;
+  }
+  .add-form input:focus, .add-form select:focus{ outline:none; border-color:var(--wood); }
+  .add-form label{ font-size:10.5px; color:var(--line-dim); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:3px; display:block; }
+  .add-btn{
+    margin-top:4px; background:linear-gradient(135deg, var(--wood), #6e5336); border:none; color:#fff; font-weight:600;
+    padding:10px 10px; border-radius:8px; cursor:pointer; font-size:12.5px; font-family:'Inter',sans-serif;
+    transition:filter 0.15s, transform 0.1s;
+  }
+  .add-btn:hover{ filter:brightness(1.15); }
+  .add-btn:active{ transform:scale(0.98); }
+
+  .client-list{ margin-top:16px; display:flex; flex-direction:column; gap:5px; }
+  .client-item{ display:flex; align-items:center; gap:8px; font-size:11.5px; padding:7px 9px; border-radius:8px; background:rgba(255,255,255,0.02); cursor:pointer; transition:background 0.15s; }
+  .client-item:hover{ background:rgba(255,255,255,0.06); }
+  .client-item .dot{ width:7px;height:7px;border-radius:50%; flex-shrink:0; }
+  .client-item .name{ flex:1; color:var(--line); }
+  .client-item .val{ color:var(--line-dim); font-family:'IBM Plex Mono',monospace; }
+  .client-item .del{ color:var(--line-dim); background:none; border:none; cursor:pointer; font-size:14px; padding:0 2px; line-height:1; }
+  .client-item .del:hover{ color:var(--churn); }
+
+  .canvas-wrap{ position:relative; }
+  .canvas-header{ position:absolute; top:20px; left:26px; right:26px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; z-index:2; }
+  .canvas-title{ font-family:'Fraunces',serif; font-style:italic; font-weight:500; font-size:14px; color:var(--line-dim); }
+  .hint{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--line-dim); opacity:0.55; margin-top:3px; }
+  .save-indicator{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--line-dim); opacity:0; transition:opacity 0.3s; }
+  .save-indicator.show{ opacity:0.7; }
+
+  .canvas-wrap{ height:100%; }
+  svg{ display:block; width:100%; height:100%; }
+    0%,100%{ transform: translateY(0px) rotate(0deg); }
+    50%{ transform: translateY(-7px) rotate(-2deg); }
+  }
+  @keyframes wobble{
+    0%{ transform: scale(1,1) rotate(0deg); }
+    25%{ transform: scale(1.1,0.9) rotate(4deg); }
+    50%{ transform: scale(0.93,1.08) rotate(-4deg); }
+    75%{ transform: scale(1.05,0.96) rotate(2deg); }
+    100%{ transform: scale(1,1) rotate(0deg); }
+  }
+  .bubble{
+    cursor:grab;
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+    animation: bob var(--dur, 4s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  .bubble:hover{ animation: wobble 0.7s ease-in-out; }
+  .bubble:active{ cursor:grabbing; animation:none; }
+  .bubble circle.core{ transition:filter 0.15s; }
+  .bubble:hover circle.core{ filter:brightness(1.15); }
+
+  .detail-card{
+    position:absolute; bottom:22px; right:22px; width:250px;
+    background:var(--panel-bg); backdrop-filter:blur(14px); border:1px solid var(--panel-border);
+    border-radius:14px; padding:15px 17px; font-size:12px; display:none; z-index:3;
+  }
+  .detail-card.show{ display:block; }
+  .detail-card .dname{ font-family:'Fraunces',serif; font-size:16px; margin:0 0 8px 0; }
+  .detail-card .drow{ display:flex; justify-content:space-between; padding:3px 0; color:var(--line-dim); font-family:'IBM Plex Mono',monospace; font-size:11px; }
+  .detail-card .drow b{ color:var(--line); font-weight:500; }
+  .detail-card .close{ position:absolute; top:9px; right:11px; background:none; border:none; color:var(--line-dim); cursor:pointer; font-size:14px; }
+</style>
+</head>
+<body>
+
+
+<div class="tree-app">
+  <div class="panel">
+    <p class="brand">The Sendio Tree</p>
+    <p class="brand-sub">Roots in, clients up</p>
+
+    <div class="section-label">Weekly volume</div>
+    <div id="channelInputs"></div>
+
+    <div class="section-label">Overview</div>
+    <div class="stat-block" id="statBlock"></div>
+
+    <div class="section-label">Add a client</div>
+    <form class="add-form" id="addForm">
+      <div>
+        <label>Name</label>
+        <input type="text" id="f-name" placeholder="e.g. Bright Data" required />
+      </div>
+      <div>
+        <label>Channel</label>
+        <select id="f-channel">
+          <option value="enterprise">Enterprise</option>
+          <option value="affiliate">Affiliate</option>
+          <option value="founder">Founder</option>
+        </select>
+      </div>
+      <div>
+        <label>Tactic</label>
+        <input type="text" id="f-tactic" placeholder="e.g. Paid consult, cold LinkedIn" />
+      </div>
+      <div>
+        <label>Value (seats / subs)</label>
+        <input type="number" id="f-value" min="1" value="1" />
+      </div>
+      <div>
+        <label>Status</label>
+        <select id="f-status">
+          <option value="active">Active</option>
+          <option value="closing">Closing</option>
+          <option value="churned">Churned</option>
+        </select>
+      </div>
+      <button type="submit" class="add-btn">Add to the tree</button>
+    </form>
+
+    <div class="section-label">Clients</div>
+    <div class="client-list" id="clientList"></div>
+  </div>
+
+  <div class="canvas-wrap">
+    <div class="canvas-header">
+      <div>
+        <div class="canvas-title">grows upward as volume compounds</div>
+        <div class="hint">drag any bubble to rearrange</div>
+      </div>
+      <div class="save-indicator" id="saveIndicator">saved</div>
+    </div>
+    <svg id="tree" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="detail-card" id="detailCard">
+      <button class="close" id="detailClose">&times;</button>
+      <p class="dname" id="d-name"></p>
+      <div class="drow"><span>Channel</span><b id="d-channel"></b></div>
+      <div class="drow"><span>Tactic</span><b id="d-tactic"></b></div>
+      <div class="drow"><span>Value</span><b id="d-value"></b></div>
+      <div class="drow"><span>Status</span><b id="d-status"></b></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'growth-tree-data-v2';
+  const CHANNELS = {
+    enterprise: { label:'Enterprise', accent:'#d4a24a' },
+    affiliate:  { label:'Affiliate',  accent:'#74b895' },
+    founder:    { label:'Founder',    accent:'#6f9bc4' }
+  };
+
+  let data = {
+    volumes: { enterprise: 50, affiliate: 15, founder: 80 },
+    clients: [
+      { id:'seed-1', name:'50-rep account', channel:'enterprise', tactic:'ABM outbound', value:45, status:'closing', dx:0, dy:0 },
+      { id:'seed-2', name:'Charlie', channel:'affiliate', tactic:'Paid consult (Upwork)', value:7, status:'active', dx:0, dy:0 },
+      { id:'seed-3', name:'Guideless', channel:'founder', tactic:'Cold LinkedIn', value:2, status:'active', dx:0, dy:0 }
+    ]
+  };
+
+  function hashSeed(str){ let h=0; for(let i=0;i<str.length;i++){ h=(Math.imul(31,h)+str.charCodeAt(i))|0; } return h; }
+  function seededRandom(seed){
+    let t = seed + 0x6D2B79F5;
+    return function(){
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+  function shade(hex, amt){
+    hex = hex.replace('#','');
+    const num = parseInt(hex,16);
+    const r = (num>>16)&255, g=(num>>8)&255, b=num&255;
+    const f = (c)=> amt>=0 ? c+(255-c)*amt : c*(1+amt);
+    return `rgb(${clamp(Math.round(f(r)),0,255)},${clamp(Math.round(f(g)),0,255)},${clamp(Math.round(f(b)),0,255)})`;
+  }
+
+  let saveTimer = null;
+  function save(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>{
+      try{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        const ind = document.getElementById('saveIndicator');
+        ind.classList.add('show');
+        setTimeout(()=>ind.classList.remove('show'), 900);
+      }catch(e){ console.error('save failed', e); }
+    }, 200);
+  }
+  async function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw){
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.volumes && parsed.clients){
+          parsed.clients.forEach(c=>{ if (c.dx===undefined) c.dx=0; if (c.dy===undefined) c.dy=0; });
+          data = parsed;
+        }
+      }
+    }catch(e){ /* no saved data yet, keep seed */ }
+  }
+
+  function renderChannelInputs(){
+    const wrap = document.getElementById('channelInputs');
+    wrap.innerHTML = '';
+    Object.keys(CHANNELS).forEach(key=>{
+      const ch = CHANNELS[key];
+      const card = document.createElement('div');
+      card.className = 'channel-card';
+      card.innerHTML = `
+        <div class="channel-row">
+          <span class="swatch" style="background:${ch.accent}"></span>
+          <label>${ch.label}</label>
+          <span class="num" id="num-${key}">${data.volumes[key]}</span>
+        </div>
+        <input type="range" min="0" max="150" value="${data.volumes[key]}" data-channel="${key}" />
+      `;
+      wrap.appendChild(card);
+    });
+    wrap.querySelectorAll('input[type=range]').forEach(inp=>{
+      inp.addEventListener('input', (e)=>{
+        const key = e.target.getAttribute('data-channel');
+        data.volumes[key] = Number(e.target.value) || 0;
+        document.getElementById('num-'+key).textContent = data.volumes[key];
+        renderTree();
+        renderStats();
+        save();
+      });
+    });
+  }
+
+  function renderStats(){
+    const totalVolume = Object.values(data.volumes).reduce((a,b)=>a+b,0);
+    const active = data.clients.filter(c=>c.status!=='churned');
+    const totalValue = active.reduce((a,c)=>a+Number(c.value||0),0);
+    const byChannel = {};
+    Object.keys(CHANNELS).forEach(k=>byChannel[k]=0);
+    active.forEach(c=>{ byChannel[c.channel] = (byChannel[c.channel]||0) + Number(c.value||0); });
+
+    const block = document.getElementById('statBlock');
+    block.innerHTML = `
+      <div class="stat-row"><span>Total weekly volume</span><b>${totalVolume}</b></div>
+      <div class="stat-row"><span>Clients on the tree</span><b>${active.length}</b></div>
+      <div class="stat-row"><span>Total seats/subs</span><b>${totalValue}</b></div>
+      ${Object.keys(CHANNELS).map(k=>`<div class="stat-row"><span>${CHANNELS[k].label} seats</span><b>${byChannel[k]}</b></div>`).join('')}
+    `;
+  }
+
+  function renderClientList(){
+    const list = document.getElementById('clientList');
+    list.innerHTML = '';
+    data.clients.forEach(c=>{
+      const item = document.createElement('div');
+      item.className = 'client-item';
+      item.innerHTML = `
+        <span class="dot" style="background:${CHANNELS[c.channel].accent}; opacity:${c.status==='churned'?0.35:1}"></span>
+        <span class="name">${c.name}</span>
+        <span class="val">${c.value}</span>
+        <button class="del" data-id="${c.id}">&times;</button>
+      `;
+      item.addEventListener('click', (e)=>{
+        if (e.target.classList.contains('del')) return;
+        showDetail(c);
+      });
+      list.appendChild(item);
+    });
+    list.querySelectorAll('.del').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        data.clients = data.clients.filter(c=>c.id!==id);
+        renderAll();
+        save();
+      });
+    });
+  }
+
+  function showDetail(c){
+    document.getElementById('d-name').textContent = c.name;
+    document.getElementById('d-channel').textContent = CHANNELS[c.channel].label;
+    document.getElementById('d-tactic').textContent = c.tactic || '—';
+    document.getElementById('d-value').textContent = c.value;
+    document.getElementById('d-status').textContent = c.status;
+    document.getElementById('detailCard').classList.add('show');
+  }
+  document.getElementById('detailClose').addEventListener('click', ()=>{
+    document.getElementById('detailCard').classList.remove('show');
+  });
+
+  function bezier(p0,p1,p2,p3){
+    return `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y}`;
+  }
+
+  function toSvgPoint(svg, clientX, clientY){
+    const pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    const ctm = svg.getScreenCTM().inverse();
+    return pt.matrixTransform(ctm);
+  }
+
+  let dragState = null;
+
+  function renderTree(){
+    const svg = document.getElementById('tree');
+    const wrap = svg.parentElement;
+    const rect = wrap.getBoundingClientRect();
+    const H = 900;
+    const aspect = rect.height > 0 ? (rect.width / rect.height) : 1.5;
+    const W = clamp(Math.round(H * aspect), 900, 2400);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    let svgParts = [];
+
+    svgParts.push(`<defs>
+      ${Object.keys(CHANNELS).map(k=>{
+        const c = CHANNELS[k].accent;
+        return `<radialGradient id="grad-${k}" cx="32%" cy="26%" r="78%">
+          <stop offset="0%" stop-color="${shade(c,0.6)}"/>
+          <stop offset="55%" stop-color="${c}"/>
+          <stop offset="100%" stop-color="${shade(c,-0.2)}"/>
+        </radialGradient>`;
+      }).join('')}
+      <filter id="bubbleSoft" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="0.8" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>`);
+
+    // ground line at the very bottom, canopy grows toward the top
+    const trunkBase = { x: W/2, y: H - 60 };
+    const trunkFork = { x: W/2, y: H*0.56 };
+    const totalVolume = Object.values(data.volumes).reduce((a,b)=>a+b,0) || 1;
+
+    svgParts.push(`<line x1="40" y1="${H-30}" x2="${W-40}" y2="${H-30}" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>`);
+
+    // roots reaching down from the trunk base into the ground
+    const rootCount = clamp(Math.round(totalVolume/6), 6, 28);
+    const rng = seededRandom(hashSeed('roots'));
+    let rootLines = '';
+    for (let i=0;i<rootCount;i++){
+      const t = i/(rootCount-1 || 1);
+      const spread = lerp(-380, 380, t) + (rng()-0.5)*30;
+      const endX = trunkBase.x + spread;
+      const endY = H - 20;
+      const c1 = { x: trunkBase.x + spread*0.15, y: trunkBase.y + 25 };
+      const c2 = { x: trunkBase.x + spread*0.6, y: lerp(trunkBase.y, endY, 0.7) };
+      rootLines += `<path d="${bezier(trunkBase,c1,c2,{x:endX,y:endY})}" stroke="#8a877d" stroke-opacity="0.22" stroke-width="1.4" fill="none"/>`;
+      rootLines += `<circle cx="${endX}" cy="${endY}" r="2.2" fill="#8a877d" opacity="0.3"/>`;
+    }
+    svgParts.push(rootLines);
+
+    // trunk rises from base up to the fork
+    const trunkWidth = clamp(totalVolume/9, 7, 34);
+    svgParts.push(`<path d="M ${trunkBase.x} ${trunkBase.y} C ${trunkBase.x-6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x+6} ${lerp(trunkBase.y,trunkFork.y,0.5)}, ${trunkFork.x} ${trunkFork.y}" stroke="#8a6b48" stroke-width="${trunkWidth}" fill="none" stroke-linecap="round"/>`);
+
+    const order = ['enterprise','affiliate','founder'];
+    const anchorX = { enterprise: W*0.22, affiliate: W*0.5, founder: W*0.78 };
+    const anchorY = H*0.40;
+
+    order.forEach(key=>{
+      const ch = CHANNELS[key];
+      const vol = data.volumes[key] || 0;
+      const anchor = { x: anchorX[key], y: anchorY };
+      const branchWidth = clamp(vol/7, 3, 20);
+      const c1 = { x: trunkFork.x, y: lerp(trunkFork.y, anchor.y, 0.3) };
+      const c2 = { x: anchor.x, y: lerp(trunkFork.y, anchor.y, 0.8) };
+      svgParts.push(`<path d="${bezier(trunkFork,c1,c2,anchor)}" stroke="${ch.accent}" stroke-opacity="0.55" stroke-width="${branchWidth}" fill="none" stroke-linecap="round"/>`);
+
+      svgParts.push(`<text x="${anchor.x}" y="${anchor.y - 16}" text-anchor="middle" fill="${ch.accent}" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1" opacity="0.85">${ch.label.toUpperCase()} · ${vol}/wk</text>`);
+
+      const clients = data.clients.filter(c=>c.channel===key);
+      const n = clients.length;
+      clients.forEach((c,i)=>{
+        const seed = hashSeed(c.id);
+        const r = seededRandom(seed);
+        const spreadT = n>1 ? i/(n-1) : 0.5;
+        const jitterX = (r()-0.5)*40;
+        const baseX = anchor.x + lerp(-160,160,spreadT) + jitterX;
+        const normVal = clamp(Number(c.value||1)/50, 0, 1);
+        const baseY = lerp(anchor.y - 30, anchor.y - 260, normVal) + (r()-0.5)*20;
+
+        const bx = baseX + (c.dx||0);
+        const by = baseY + (c.dy||0);
+
+        const tc1 = { x: anchor.x + (bx-anchor.x)*0.3, y: anchor.y - 30 };
+        const tc2 = { x: bx, y: by + 70 };
+        const twigWidth = clamp(Number(c.value||1)/9, 1, 5.5);
+        const isChurned = c.status === 'churned';
+        const op = isChurned ? 0.28 : (c.status==='closing' ? 0.75 : 1);
+
+        svgParts.push(`<path d="${bezier(anchor,tc1,tc2,{x:bx,y:by})}" stroke="${ch.accent}" stroke-opacity="${op*0.55}" stroke-width="${twigWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
+
+        const radius = clamp(8 + Number(c.value||1)*1.1, 10, 40);
+        const dur = (3.2 + r()*2.4).toFixed(2);
+        const delay = (-(r()*3)).toFixed(2);
+        svgParts.push(`<g class="bubble" data-id="${c.id}" opacity="${op}" style="--dur:${dur}s; --delay:${delay}s;">
+          <circle class="core" cx="${bx}" cy="${by}" r="${radius}" fill="url(#grad-${key})" stroke="${shade(ch.accent,0.4)}" stroke-width="1" stroke-opacity="0.5" filter="url(#bubbleSoft)"/>
+          <ellipse cx="${bx-radius*0.32}" cy="${by-radius*0.38}" rx="${radius*0.26}" ry="${radius*0.16}" fill="#ffffff" fill-opacity="0.55" transform="rotate(-25 ${bx-radius*0.32} ${by-radius*0.38})"/>
+          <text x="${bx}" y="${by+radius+15}" text-anchor="middle" fill="#ece9de" font-family="Inter, sans-serif" font-size="10.5" opacity="0.85">${c.name}</text>
+        </g>`);
+      });
+    });
+
+    svg.innerHTML = svgParts.join('');
+
+    svg.querySelectorAll('.bubble').forEach(g=>{
+      const id = g.getAttribute('data-id');
+      let moved = false;
+
+      g.addEventListener('pointerdown', (e)=>{
+        e.preventDefault();
+        const client = data.clients.find(x=>x.id===id);
+        if (!client) return;
+        moved = false;
+        const start = toSvgPoint(svg, e.clientX, e.clientY);
+        dragState = { id, startX: start.x, startY: start.y, startDx: client.dx||0, startDy: client.dy||0 };
+        g.setPointerCapture(e.pointerId);
+      });
+      g.addEventListener('pointermove', (e)=>{
+        if (!dragState || dragState.id !== id) return;
+        const cur = toSvgPoint(svg, e.clientX, e.clientY);
+        const deltaX = cur.x - dragState.startX;
+        const deltaY = cur.y - dragState.startY;
+        if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) moved = true;
+        const client = data.clients.find(x=>x.id===id);
+        if (!client) return;
+        client.dx = dragState.startDx + deltaX;
+        client.dy = dragState.startDy + deltaY;
+        renderTree();
+      });
+      g.addEventListener('pointerup', (e)=>{
+        if (dragState && dragState.id === id){
+          dragState = null;
+          save();
+        }
+        if (!moved){
+          const client = data.clients.find(x=>x.id===id);
+          if (client) showDetail(client);
+        }
+      });
+    });
+  }
+
+  function renderAll(){
+    renderChannelInputs();
+    renderStats();
+    renderClientList();
+    renderTree();
+  }
+
+  document.getElementById('addForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) return;
+    const channel = document.getElementById('f-channel').value;
+    const tactic = document.getElementById('f-tactic').value.trim();
+    const value = Number(document.getElementById('f-value').value) || 1;
+    const status = document.getElementById('f-status').value;
+    data.clients.push({
+      id: 'c-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+      name, channel, tactic, value, status, dx:0, dy:0
+    });
+    e.target.reset();
+    document.getElementById('f-value').value = 1;
+    renderAll();
+    save();
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderTree, 120);
+  });
+
+  (async function init(){
+    await load();
+    renderAll();
+  })();
+})();
+</script>
+
+</body>
+</html>
