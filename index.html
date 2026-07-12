@@ -30,16 +30,20 @@
     font-family:'Inter',sans-serif;
     border-radius:0;
     display:grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 290px 1fr 288px;
     height:100vh;
     min-height:600px;
     overflow:hidden;
     border:none;
     position:relative;
   }
-  @media (max-width: 860px){
+  @media (max-width: 1080px){
+    .tree-app{ grid-template-columns: 236px 1fr 236px; }
+  }
+  @media (max-width: 820px){
     .tree-app{ grid-template-columns: 1fr; height:auto; min-height:100vh; }
-    .panel{ max-height:340px; }
+    .panel{ max-height:320px; }
+    .summary-panel{ border-left:none; border-top:1px solid var(--panel-border); }
   }
   .panel{
     background:var(--panel-bg);
@@ -210,6 +214,39 @@
   .d-grid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:10px; }
   .detail-card .d-delete{ margin-top:12px; width:100%; background:none; border:1px solid var(--panel-border); color:var(--line-dim); border-radius:8px; padding:8px; font-size:11px; font-family:'IBM Plex Mono',monospace; letter-spacing:0.04em; cursor:pointer; transition:color 0.15s, border-color 0.15s, background 0.15s; }
   .detail-card .d-delete:hover{ color:#e0b4b4; border-color:var(--churn); background:rgba(138,90,90,0.12); }
+
+  /* channel reorder arrows */
+  .ch-move{ background:none; border:none; color:var(--line-dim); cursor:pointer; font-size:15px; line-height:1; padding:0 1px; opacity:0.5; flex-shrink:0; transition:color 0.15s, opacity 0.15s; }
+  .ch-move:hover{ color:var(--line); opacity:1; }
+
+  /* per-node color + links in the detail card */
+  .d-color-row{ display:flex; align-items:center; gap:6px; }
+  .detail-card .d-color{ -webkit-appearance:none; appearance:none; width:34px; height:32px; padding:0; border:1px solid var(--panel-border); border-radius:7px; background:none; cursor:pointer; flex-shrink:0; }
+  .detail-card .d-color::-webkit-color-swatch-wrapper{ padding:2px; }
+  .detail-card .d-color::-webkit-color-swatch{ border:none; border-radius:4px; }
+  .detail-card .d-color-reset{ flex:1; background:rgba(255,255,255,0.04); border:1px solid var(--panel-border); color:var(--line-dim); border-radius:7px; padding:6px 4px; font-size:10px; font-family:'IBM Plex Mono',monospace; letter-spacing:0.04em; cursor:pointer; transition:color 0.15s, border-color 0.15s; }
+  .detail-card .d-color-reset:hover{ color:var(--line); border-color:var(--wood); }
+  .detail-card .d-link-btn{ width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--panel-border); color:var(--line); border-radius:7px; padding:7px 6px; font-size:11px; font-family:'Inter',sans-serif; cursor:pointer; transition:border-color 0.15s, background 0.15s; }
+  .detail-card .d-link-btn:hover{ border-color:var(--wood); background:rgba(124,108,240,0.12); }
+  .d-links{ display:none; flex-wrap:wrap; gap:5px; margin:2px 0 4px; }
+  .link-chip{ display:inline-flex; align-items:center; gap:3px; background:rgba(170,180,230,0.12); border:1px solid var(--panel-border); border-radius:20px; padding:2px 3px 2px 9px; font-size:10.5px; color:var(--line); }
+  .link-chip button{ background:none; border:none; color:var(--line-dim); cursor:pointer; font-size:13px; line-height:1; padding:0 2px; }
+  .link-chip button:hover{ color:var(--churn); }
+  .cortex-caption.linking{ color:var(--enterprise); border-color:var(--enterprise); }
+  svg#tree.linking, svg#tree.linking .bubble{ cursor:crosshair; }
+
+  /* right-side summary panel */
+  .summary-panel{ border-right:none; border-left:1px solid var(--panel-border); }
+  .sum-card{ background:rgba(255,255,255,0.03); border:1px solid var(--panel-border); border-radius:11px; padding:10px 12px; margin-bottom:8px; }
+  .sum-head{ display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+  .sum-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .sum-label{ flex:1; font-size:12.5px; font-weight:600; color:var(--line); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sum-conv{ font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--line); }
+  .sum-row{ display:flex; justify-content:space-between; font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--line-dim); padding:2px 0; }
+  .sum-row b{ color:var(--line); font-weight:500; }
+  .sum-bar{ margin-top:7px; height:4px; border-radius:3px; background:rgba(255,255,255,0.07); overflow:hidden; }
+  .sum-bar span{ display:block; height:100%; border-radius:3px; transition:width 0.3s; }
+  .sum-empty{ font-size:11px; color:var(--line-dim); opacity:0.7; padding:4px 2px; }
 </style>
 </head>
 <body>
@@ -325,8 +362,33 @@
           </select>
         </div>
       </div>
+      <div class="d-grid">
+        <div>
+          <label>Color</label>
+          <div class="d-color-row">
+            <input type="color" id="d-color" class="d-color" />
+            <button type="button" class="d-color-reset" id="d-colorReset" title="Use channel color">reset</button>
+          </div>
+        </div>
+        <div>
+          <label>Connections</label>
+          <button type="button" class="d-link-btn" id="d-link">＋ Tie a link</button>
+        </div>
+      </div>
+      <div class="d-links" id="d-links"></div>
       <button class="d-delete" id="d-delete">Delete from tree</button>
     </div>
+  </div>
+
+  <div class="panel summary-panel">
+    <p class="brand" style="font-size:17px;">Efforts × Results</p>
+    <p class="brand-sub">what's actually converting</p>
+
+    <div class="section-label">By channel</div>
+    <div id="summaryChannels"></div>
+
+    <div class="section-label">By tactic</div>
+    <div id="summaryTactics"></div>
   </div>
 </div>
 
@@ -341,10 +403,12 @@
   const CH_PALETTE = ['#a78bfa','#2dd4bf','#fb923c','#f472b6','#60a5fa','#facc15','#34d399','#c084fc','#fb7185','#38bdf8'];
   function cloneChannels(list){ return list.map(c=>({ id:c.id, label:c.label, accent:c.accent })); }
   function chan(id){ return data.channels.find(c=>c.id===id) || { id, label:id, accent:'#8890b5' }; }
+  function nodeAccent(c){ return (c && c.color) || chan(c.channel).accent; }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
   let data = {
     channels: cloneChannels(DEFAULT_CHANNELS),
+    links: [],
     volumes: { enterprise: 50, affiliate: 15, founder: 80 },
     clients: [
       // canopy — converted clients
@@ -400,6 +464,7 @@
             parsed.channels = cloneChannels(DEFAULT_CHANNELS);
           }
           parsed.volumes = parsed.volumes || {};
+          if (!Array.isArray(parsed.links)) parsed.links = [];
           parsed.channels.forEach(ch=>{ if (parsed.volumes[ch.id]===undefined) parsed.volumes[ch.id]=0; });
           parsed.clients.forEach(c=>{ if (c.dx===undefined) c.dx=0; if (c.dy===undefined) c.dy=0; if (!c.stage) c.stage='client'; });
           data = parsed;
@@ -431,6 +496,8 @@
           <input type="color" class="swatch-input" value="${esc(ch.accent)}" data-id="${esc(ch.id)}" title="Channel color" />
           <input type="text" class="channel-name" value="${esc(ch.label)}" data-id="${esc(ch.id)}" spellcheck="false" />
           <span class="num" id="num-${esc(ch.id)}">${vol}</span>
+          <button class="ch-move" data-id="${esc(ch.id)}" data-dir="-1" title="Move left">&lsaquo;</button>
+          <button class="ch-move" data-id="${esc(ch.id)}" data-dir="1" title="Move right">&rsaquo;</button>
           <button class="ch-del" data-id="${esc(ch.id)}" title="Remove channel">&times;</button>
         </div>
         <input type="range" min="0" max="150" value="${vol}" data-channel="${esc(ch.id)}" />
@@ -461,6 +528,18 @@
       inp.addEventListener('input', (e)=>{
         chan(e.target.getAttribute('data-id')).label = e.target.value;
         renderTree(); renderStats(); refreshChannelSelects(); save();
+      });
+    });
+    wrap.querySelectorAll('.ch-move').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-id');
+        const dir = Number(btn.getAttribute('data-dir'));
+        const i = data.channels.findIndex(c=>c.id===id);
+        const j = i + dir;
+        if (i<0 || j<0 || j>=data.channels.length) return;
+        const arr = data.channels;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        renderAll(); save();
       });
     });
     wrap.querySelectorAll('.ch-del').forEach(btn=>{
@@ -504,6 +583,41 @@
     `;
     const nc = document.getElementById('nodeCount');
     if (nc) nc.textContent = data.clients.length;
+    renderSummary();
+  }
+
+  function summaryMetrics(nodes){
+    const opps = nodes.filter(c=>c.stage==='opportunity').length;
+    const clients = nodes.filter(c=>c.stage!=='opportunity' && c.status!=='churned');
+    const won = clients.length;
+    const seats = clients.reduce((a,c)=>a+Number(c.value||0),0);
+    const conv = (won+opps)>0 ? Math.round(won/(won+opps)*100) : 0;
+    return { opps, won, seats, conv };
+  }
+  function summaryCard(label, color, effortText, resultText, conv){
+    return `<div class="sum-card">
+      <div class="sum-head"><span class="sum-dot" style="background:${color}"></span><span class="sum-label">${esc(label)}</span><span class="sum-conv">${conv}%</span></div>
+      <div class="sum-row"><span>effort</span><b>${esc(effortText)}</b></div>
+      <div class="sum-row"><span>results</span><b>${esc(resultText)}</b></div>
+      <div class="sum-bar"><span style="width:${conv}%; background:${color}"></span></div>
+    </div>`;
+  }
+  function renderSummary(){
+    const chBox = document.getElementById('summaryChannels');
+    const tBox = document.getElementById('summaryTactics');
+    if (!chBox || !tBox) return;
+    chBox.innerHTML = data.channels.map(ch=>{
+      const m = summaryMetrics(data.clients.filter(c=>c.channel===ch.id));
+      const vol = data.volumes[ch.id] || 0;
+      return summaryCard(ch.label, ch.accent, `${vol}/wk · ${m.opps} in pipe`, `${m.won} won · ${m.seats} seats`, m.conv);
+    }).join('') || `<div class="sum-empty">No channels yet.</div>`;
+    const byT = {};
+    data.clients.forEach(c=>{ const t=((c.tactic||'').trim())||'Untagged'; (byT[t]=byT[t]||[]).push(c); });
+    const tactics = Object.keys(byT).sort((a,b)=>byT[b].length-byT[a].length);
+    tBox.innerHTML = tactics.map(t=>{
+      const m = summaryMetrics(byT[t]);
+      return summaryCard(t, '#8890b5', `${m.opps} in pipe`, `${m.won} won · ${m.seats} seats`, m.conv);
+    }).join('') || `<div class="sum-empty">Tag nodes with a tactic to see this.</div>`;
   }
 
   function renderClientList(){
@@ -522,7 +636,7 @@
       group.items.forEach(c=>{
         const item = document.createElement('div');
         item.className = 'client-item' + (c.stage==='opportunity' ? ' is-opp' : '');
-        const acc = chan(c.channel).accent;
+        const acc = nodeAccent(c);
         const dotStyle = c.stage==='opportunity'
           ? `background:transparent; box-shadow:inset 0 0 0 1.5px ${acc}; opacity:${c.status==='churned'?0.35:1}`
           : `background:${acc}; opacity:${c.status==='churned'?0.35:1}`;
@@ -551,6 +665,22 @@
   }
 
   let selectedId = null;
+  function renderDetailLinks(c){
+    const box = document.getElementById('d-links');
+    const links = (data.links||[]).filter(l=>l.from===c.id||l.to===c.id);
+    if (!links.length){ box.innerHTML=''; box.style.display='none'; return; }
+    box.style.display='flex';
+    box.innerHTML = links.map(l=>{
+      const otherId = l.from===c.id ? l.to : l.from;
+      const other = data.clients.find(x=>x.id===otherId);
+      return `<span class="link-chip">${esc(other ? other.name : '—')}<button data-lid="${l.id}" title="Remove link">&times;</button></span>`;
+    }).join('');
+    box.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', ()=>{
+      const lid = btn.getAttribute('data-lid');
+      data.links = data.links.filter(x=>x.id!==lid);
+      renderTree(); renderDetailLinks(c); save();
+    }));
+  }
   function showDetail(c){
     selectedId = c.id;
     document.getElementById('d-name').value = c.name;
@@ -559,6 +689,9 @@
     document.getElementById('d-tactic').value = c.tactic || '';
     document.getElementById('d-value').value = c.value;
     document.getElementById('d-status').value = c.status;
+    document.getElementById('d-color').value = nodeAccent(c);
+    document.getElementById('d-colorReset').style.visibility = c.color ? 'visible' : 'hidden';
+    renderDetailLinks(c);
     document.getElementById('detailCard').classList.add('show');
   }
   document.getElementById('detailClose').addEventListener('click', ()=>{
@@ -587,6 +720,21 @@
       const el = document.getElementById('d-name');
       el.focus(); el.select();
     });
+    document.getElementById('d-color').addEventListener('input', (e)=>{
+      const c = data.clients.find(x=>x.id===selectedId); if (!c) return;
+      c.color = e.target.value;
+      document.getElementById('d-colorReset').style.visibility = 'visible';
+      renderTree(); renderClientList(); save();
+    });
+    document.getElementById('d-colorReset').addEventListener('click', ()=>{
+      const c = data.clients.find(x=>x.id===selectedId); if (!c) return;
+      delete c.color;
+      showDetail(c); renderTree(); renderClientList(); save();
+    });
+    document.getElementById('d-link').addEventListener('click', ()=>{
+      if (!selectedId) return;
+      linkMode = true; linkSource = selectedId; updateCaption();
+    });
     document.getElementById('d-delete').addEventListener('click', ()=>{
       if (!selectedId) return;
       data.clients = data.clients.filter(x=>x.id!==selectedId);
@@ -613,9 +761,28 @@
   let lastLayout = null;
   let zoom = 1;
   let meshCache = { w:0, h:0, str:'' };
+  let linkMode = false;
+  let linkSource = null;
+
+  function updateCaption(){
+    const cap = document.querySelector('.cortex-caption');
+    if (cap){
+      cap.textContent = linkMode ? 'click a node to tie the link · esc to cancel' : 'synaptic mesh · drag nodes · click to inspect';
+      cap.classList.toggle('linking', linkMode);
+    }
+    const svg = document.getElementById('tree');
+    if (svg) svg.classList.toggle('linking', linkMode);
+  }
+  function cancelLinkMode(){ linkMode = false; linkSource = null; updateCaption(); }
+  function addLink(from, to){
+    if (!from || !to || from===to) return;
+    data.links = data.links || [];
+    if (data.links.some(l=>(l.from===from&&l.to===to)||(l.from===to&&l.to===from))) return;
+    data.links.push({ id:'l-'+Date.now().toString(36), from, to });
+  }
 
   function bubbleMarkup(c, bx, by){
-    const acc = chan(c.channel).accent;
+    const acc = nodeAccent(c);
     const r = seededRandom(hashSeed(c.id));
     const radius = clamp(10 + Number(c.value||1)*1.0, 13, 40);
     const isChurned = c.status === 'churned';
@@ -656,6 +823,8 @@
     const vbW = W/zoom, vbH = H/zoom;
     svg.setAttribute('viewBox', `${((W-vbW)/2).toFixed(1)} ${((H-vbH)/2).toFixed(1)} ${vbW.toFixed(1)} ${vbH.toFixed(1)}`);
     let parts = [];
+    let bubbleParts = [];
+    const nodePos = {};
 
     // vertical composition: canopy up top, ground in the middle, roots below
     const branchAnchorY = H*0.24;
@@ -769,12 +938,14 @@
         const rootWidth = clamp(Number(c.value||1)/10, 1.2, 4.5);
         const isChurned = c.status === 'churned';
         const op = isChurned ? 0.3 : 1;
+        const acc = nodeAccent(c);
         const rootPath = bezier(trunkBase,rc1,rc2,{x:bx,y:by});
-        parts.push(`<path d="${rootPath}" stroke="${ch.accent}" stroke-opacity="${op*0.4}" stroke-width="${rootWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
+        parts.push(`<path d="${rootPath}" stroke="${acc}" stroke-opacity="${op*0.4}" stroke-width="${rootWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
         if (!isChurned){
-          parts.push(`<path class="flow" d="${rootPath}" stroke="${shade(ch.accent,0.5)}" stroke-opacity="0.8" stroke-width="${clamp(rootWidth*0.7,1.6,3.5)}" fill="none" stroke-linecap="round" stroke-dasharray="3 21"/>`);
+          parts.push(`<path class="flow" d="${rootPath}" stroke="${shade(acc,0.5)}" stroke-opacity="0.8" stroke-width="${clamp(rootWidth*0.7,1.6,3.5)}" fill="none" stroke-linecap="round" stroke-dasharray="3 21"/>`);
         }
-        parts.push(bubbleMarkup(c, bx, by));
+        nodePos[c.id] = { x:bx, y:by };
+        bubbleParts.push(bubbleMarkup(c, bx, by));
       });
     });
 
@@ -810,12 +981,26 @@
         const twigWidth = clamp(Number(c.value||1)/9, 1, 5.5);
         const isChurned = c.status === 'churned';
         const op = isChurned ? 0.28 : (c.status==='closing' ? 0.75 : 1);
+        const acc = nodeAccent(c);
 
-        parts.push(`<path d="${bezier(anchor,tc1,tc2,{x:bx,y:by})}" stroke="${ch.accent}" stroke-opacity="${op*0.55}" stroke-width="${twigWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
-        parts.push(bubbleMarkup(c, bx, by));
+        parts.push(`<path d="${bezier(anchor,tc1,tc2,{x:bx,y:by})}" stroke="${acc}" stroke-opacity="${op*0.55}" stroke-width="${twigWidth}" fill="none" stroke-linecap="round" stroke-dasharray="${isChurned?'4,3':'none'}"/>`);
+        nodePos[c.id] = { x:bx, y:by };
+        bubbleParts.push(bubbleMarkup(c, bx, by));
       });
     });
 
+    // ---- freeform links between nodes (drawn under the orbs, over the branches) ----
+    let linkParts = '';
+    (data.links||[]).forEach(l=>{
+      const a = nodePos[l.from], b = nodePos[l.to];
+      if (!a || !b) return;
+      const mx = (a.x+b.x)/2, my = (a.y+b.y)/2 - Math.abs(a.x-b.x)*0.14 - 22;
+      const d = `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+      linkParts += `<path d="${d}" fill="none" stroke="#aab4e6" stroke-opacity="0.28" stroke-width="3.5" filter="url(#softGlow)"/>`;
+      linkParts += `<path class="flow" d="${d}" fill="none" stroke="#dfe6ff" stroke-opacity="0.85" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="2 12"/>`;
+    });
+    parts.push(linkParts);
+    parts.push(bubbleParts.join(''));
     parts.push(nodeParts);
 
     svg.innerHTML = parts.join('');
@@ -826,7 +1011,7 @@
     const svg = document.getElementById('tree');
     svg.addEventListener('pointerdown', (e)=>{
       const g = e.target.closest && e.target.closest('.bubble');
-      if (!g) return;
+      if (!g){ if (linkMode) cancelLinkMode(); return; }
       const id = g.getAttribute('data-id');
       const client = data.clients.find(x=>x.id===id);
       if (!client) return;
@@ -858,8 +1043,20 @@
       dragState = null;
       delete dragAngles[id];
 
-      // dropping an opportunity into another channel's zone re-connects it there
-      if (client && client.stage==='opportunity' && moved && lastLayout){
+      // link mode: a click (no drag) on another node ties the two together
+      if (linkMode){
+        const src = linkSource;
+        if (!moved && client && client.id !== src) addLink(src, client.id);
+        cancelLinkMode();
+        renderTree();
+        const s = data.clients.find(x=>x.id===src);
+        if (s) showDetail(s);
+        save();
+        return;
+      }
+
+      // dropping any node into another channel's zone re-ties it to that effort
+      if (client && moved && lastLayout){
         const el = svg.querySelector(`.bubble[data-id="${id}"] circle.core`);
         if (el){
           const absX = Number(el.getAttribute('cx'));
@@ -882,6 +1079,7 @@
       if (moved){ renderStats(); renderClientList(); }
       save();
     });
+    document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && linkMode) cancelLinkMode(); });
   }
 
   function renderAll(){
