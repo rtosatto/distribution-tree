@@ -187,6 +187,8 @@
   .node-ctrl{ opacity:0; pointer-events:none; transition:opacity 0.12s; cursor:pointer; }
   .bubble:hover .node-ctrl{ opacity:1; pointer-events:auto; }
   .node-ctrl:hover{ filter:brightness(1.3); }
+  .channel-add{ cursor:pointer; opacity:0.6; transition:opacity 0.15s, filter 0.15s; }
+  .channel-add:hover{ opacity:1; filter:brightness(1.3); }
 
   .confirm-overlay{ position:fixed; inset:0; background:rgba(6,8,16,0.6); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:50; }
   .confirm-overlay.show{ display:flex; }
@@ -823,6 +825,15 @@
     if (nn) showDetail(nn);
     save();
   }
+  function addChannelNode(channelId){
+    if (!data.channels.some(c=>c.id===channelId)) return;
+    const id = 'n-'+Date.now().toString(36)+Math.floor(Math.random()*90+10);
+    data.clients.push({ id, name:'New node', channel:channelId, stage:'client', tactic:'', value:1, status:'active', dx:0, dy:0 });
+    renderAll();
+    const nn = data.clients.find(c=>c.id===id);
+    if (nn) showDetail(nn);
+    save();
+  }
   function removeNode(id){
     const node = data.clients.find(c=>c.id===id);
     if (!node) return;
@@ -1065,6 +1076,14 @@
 
       parts.push(`<text x="${anchor.x}" y="${anchor.y + 30}" text-anchor="middle" fill="${ch.accent}" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1" opacity="0.8">${esc(ch.label.toUpperCase())} · ${vol}/wk</text>`);
 
+      // "+" to grow a new top-level node tied to this channel (the cortex)
+      const caY = anchor.y + 50;
+      parts.push(`<g class="channel-add" data-channel="${key}">
+        <circle cx="${anchor.x}" cy="${caY}" r="9.5" fill="#0d1018" stroke="${ch.accent}" stroke-width="1.3" stroke-opacity="0.85"/>
+        <line x1="${anchor.x}" y1="${caY-4.5}" x2="${anchor.x}" y2="${caY+4.5}" stroke="${ch.accent}" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="${(anchor.x-4.5).toFixed(1)}" y1="${caY}" x2="${(anchor.x+4.5).toFixed(1)}" y2="${caY}" stroke="${ch.accent}" stroke-width="1.6" stroke-linecap="round"/>
+      </g>`);
+
       const clients = data.clients.filter(c=>c.channel===key && c.stage!=='opportunity' && isTopLevel(c));
       const n = clients.length;
       clients.forEach((c,i)=>{
@@ -1111,6 +1130,8 @@
   function setupDrag(){
     const svg = document.getElementById('tree');
     svg.addEventListener('pointerdown', (e)=>{
+      const chanAdd = e.target.closest && e.target.closest('.channel-add');
+      if (chanAdd){ e.preventDefault(); addChannelNode(chanAdd.getAttribute('data-channel')); return; }
       const addBtn = e.target.closest && e.target.closest('.node-add');
       if (addBtn){ e.preventDefault(); addChild(addBtn.getAttribute('data-add')); return; }
       const delBtn = e.target.closest && e.target.closest('.node-del');
